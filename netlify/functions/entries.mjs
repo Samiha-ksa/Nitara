@@ -14,11 +14,14 @@ const ENTRY_TYPES = ["steps", "water", "shake", "bike", ...EXERCISE_IDS];
 // Entries that count once per person per day, always with an amount of 1.
 const DAILY_ONCE = ["shake", ...EXERCISE_IDS];
 
-// Riyadh is UTC+3. A "day" here is a Riyadh calendar day, same as the page uses.
-const DAY = 86400000, RIYADH = 3 * 3600 * 1000;
-const dayNum = (ts) => Math.floor((ts + RIYADH) / DAY);
+// Ammu and Abbu live in Buffalo, New York. A "day" is a Buffalo calendar day (handles daylight saving),
+// same as the page uses. It rolls over at midnight Buffalo time.
+const DAY = 86400000, TZ = "America/New_York";
+const tzFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+const dayNum = (ts) => { const [y, m, d] = tzFmt.format(ts).split("-").map(Number); return Math.round(Date.UTC(y, m - 1, d) / DAY); };
 
 const keyFor = (user) => "logs-" + user.toLowerCase();
+const jKey = (user) => "journal-" + user.toLowerCase();
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
@@ -34,12 +37,30 @@ async function readAll(store) {
 const dayOk = (day) => Number.isInteger(day) && day <= dayNum(Date.now()) && day >= dayNum(Date.now()) - 6;
 
 export default async (req) => {
-  const store = getStore("health-race-logs");
+  // "strong" makes sure a tap is always read back right away (no stale results).
+  const store = getStore({ name: "health-race-logs", consistency: "strong" });
   try {
-    if (req.method === "GET") return json({ logs: await readAll(store) });
+    if (req.method === "GET") {
+      const j = new URL(req.url).searchParams.get("journal");
+      if (j !== null) {
+        if (!USERS.includes(j)) return json({ error: "Invalid user" }, 400);
+        return json({ journal: (await store.get(jKey(j), { type: "json" })) || [] });
+      }
+      return json({ logs: await readAll(store) });
+    }
 
     if (req.method === "POST") {
       const body = await req.json();
+
+      if (body.action === "journal") {
+        const { user, prompt, text } = body;
+        if (!USERS.includes(user) || typeof text !== "string" || !text.trim()) return json({ error: "Invalid entry" }, 400);
+        const mine = (await store.get(jKey(user), { type: "json" })) || [];
+        mine.push({ text: text.trim().slice(0, 2000), prompt: String(prompt || "").slice(0, 200), ts: Date.now() });
+        const kept = mine.slice(-100);
+        await store.setJSON(jKey(user), kept);
+        return json({ journal: kept });
+      }
 
       if (body.action === "add") {
         const { user, exercise, amount, day } = body.entry || {};

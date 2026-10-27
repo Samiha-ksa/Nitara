@@ -21,7 +21,7 @@ header p{color:var(--muted);margin:6px 0 0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px -12px rgba(43,32,53,.3)}
 .lead{font-family:var(--head);font-size:1.35rem;text-align:center;margin:0 0 8px}
 svg.map{width:100%;height:auto;display:block;background:var(--grass);border-radius:14px}
-.av{transition:transform 1.2s ease}
+.av{transition:transform 1.4s ease-in-out}
 .scores{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .sc{border-radius:14px;padding:12px;text-align:center;border:3px solid var(--c);background:var(--soft)}
 .sc b{display:block;font-family:var(--head);font-size:2rem;color:var(--c)}
@@ -62,6 +62,19 @@ details{margin-top:24px}summary{cursor:pointer;font-weight:700;padding:10px 0}
 .set input{width:100%;max-width:300px}
 .sync{text-align:center;font-size:.95rem;color:var(--muted);margin:10px 0 0}.sync.ok{color:var(--b);font-weight:700}
 .cat{margin:16px 0 8px;font-size:1.2rem}#moreD{margin-top:8px}
+.book{position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:80px;height:80px;min-height:0;padding:0;border-radius:50%;background:var(--card);border:3px solid var(--line);box-shadow:0 6px 16px -6px rgba(0,0,0,.4);z-index:8;animation:hop 1.5s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes hop{0%,100%{transform:translateY(0) scale(1.04,.96)}45%{transform:translateY(-14px) scale(.97,1.04)}}
+.pup{animation:look 3s ease-in-out infinite}@keyframes look{0%,40%,100%{transform:translateX(0)}50%,90%{transform:translateX(-2px)}70%{transform:translateX(2px)}}
+.jr{position:fixed;inset:0;z-index:20;background:var(--bg);overflow:auto;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px))}.jr[hidden]{display:none}
+.quote{font-family:var(--head);font-size:1.5rem;line-height:1.35;text-align:center;background:var(--sun);border-radius:18px;padding:22px 18px;margin:8px 0 18px}
+textarea{width:100%;font:inherit;font-size:1.2rem;padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);resize:vertical}
+.jtxt{white-space:pre-wrap;margin:6px 0 10px;font-size:1.05rem}
+.av .sz{transition:transform .6s ease}.av.grow .sz{transform:scale(2.7)}
+.runner{animation:run .5s ease-in-out infinite alternate}@keyframes run{to{transform:translateY(-2px)}}
+.av.dance .runner{animation:dance .55s ease-in-out 3}@keyframes dance{0%{transform:rotate(0)}20%{transform:rotate(-16deg) translateY(-7px)}50%{transform:rotate(16deg) translateY(0)}75%{transform:rotate(-12deg) translateY(-6px)}100%{transform:rotate(0)}}
+.nm{font-size:15px;font-weight:700;paint-order:stroke;stroke:#fff;stroke-width:3px}
+@media (prefers-reduced-motion:reduce){.book,.pup,.runner,.av.dance .runner{animation:none}.av,.av .sz{transition:none}}
+body{padding-bottom:110px}
 </style>
 </head>
 <body>
@@ -101,6 +114,14 @@ details{margin-top:24px}summary{cursor:pointer;font-weight:700;padding:10px 0}
   <button class="alt" id="reset">Start the race over</button>
 </details>
 </div>
+<button class="book" id="bookBtn" aria-label="Open my journal"><svg viewBox="0 0 80 80" width="70" height="70" aria-hidden="true"><rect x="14" y="8" width="54" height="62" rx="7" fill="#4b3578"/><rect x="10" y="8" width="54" height="62" rx="7" fill="#7a56b8"/><rect x="58" y="14" width="8" height="50" rx="3" fill="#fff6e0"/><path d="M50 8 v16 l5 -4 l5 4 v-16z" fill="#e0b341"/><circle cx="26" cy="38" r="9" fill="#fff"/><circle cx="46" cy="38" r="9" fill="#fff"/><g class="pup"><circle cx="28" cy="39" r="4" fill="#2b2035"/><circle cx="48" cy="39" r="4" fill="#2b2035"/></g><path d="M28 54 Q36 62 44 54" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="17" cy="50" r="3.5" fill="#f2a1c0" opacity=".8"/><circle cx="55" cy="50" r="3.5" fill="#f2a1c0" opacity=".8"/></svg></button>
+<div class="jr" id="jr" hidden role="dialog" aria-label="Journal"><div class="wrap">
+<button class="alt" id="jclose">← Back to the race</button>
+<h2 class="sec" id="jhead"></h2><div class="quote" id="jq"></div>
+<div class="card"><div class="sub">A prompt to think about</div><h3 id="jp" style="margin-bottom:10px"></h3><button class="alt" id="jnew">Give me another prompt</button>
+<label for="jt" class="sub" style="display:block;margin-top:14px">Write here</label><textarea id="jt" rows="7" maxlength="2000"></textarea>
+<div class="row" style="margin-top:12px"><button id="jsave">Save my entry</button><button class="alt" id="jshare">Share on WhatsApp</button></div></div>
+<h3 class="cat">Past entries</h3><div id="jlist"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -139,9 +160,12 @@ const EX=[
 const ALL={};EX.forEach(([c,it])=>it.forEach(x=>ALL[x[0]]=x));
 const PLAN=[['Easy day',['b3','a1','c6']],['Back day',['b1','b2','b3']],['Arm day',['a1','a2','a3']],['Core day',['c1','c2','c3']],['Arm day 2',['a4','a5','a6']],['Shoulders and core',['s1','s2','c4']],['Core day 2',['c5','c6','c3']]];
 
-// ---- Days are Riyadh calendar days, same as the server ----
-const DAY=86400000,RIYADH=3*3600*1000;
-const dn=o=>Math.floor((Date.now()+RIYADH)/DAY)-o;
+
+// ---- Days are Buffalo, New York calendar days (same as the server). They roll over at midnight there. ----
+const DAY=86400000,TZ='America/New_York';
+const tzFmt=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'});
+const dayNum=ts=>{const[y,m,d]=tzFmt.format(ts).split('-').map(Number);return Math.round(Date.UTC(y,m-1,d)/DAY)};
+const dn=o=>dayNum(Date.now())-o;
 const routine=d=>{const w=new Date(d*DAY).getUTCDay();return{name:PLAN[w][0],ids:[['k1','k2'][w%2],['k3','k4'][w%2],...PLAN[w][1]]}};
 let S={logs:[],cur:0},off=0,R=[{},{}];
 try{S.cur=+localStorage.getItem('hr_cur')||0}catch(e){}
@@ -160,28 +184,50 @@ function toast(m){const t=$('toast');t.textContent=m;t.className='toast on';clea
 function setSync(ok){$('sync').textContent=ok?'✓ Shared live: you can see each other\u2019s progress':'⚠️ Can\u2019t reach the shared scoreboard. Check your internet.';$('sync').className='sync '+(ok?'ok':'')}
 
 // ---- Talking to the Netlify function (same idea as the old challenge page) ----
-async function api(body){
-  const r=await fetch('/api/entries',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
+async function api(body,qs=''){
+  const r=await fetch('/api/entries'+qs,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
   if(!r.ok){const e=new Error(String(r.status));e.status=r.status;throw e}
   return r.json();
 }
-function apply(data){S.logs=data.logs;index();setSync(true);render()}
-async function refresh(){try{apply(await api())}catch(e){setSync(false)}}
-async function act(body,okMsg){
-  const p=S.cur,d=dn(off),before=Math.max(total(0),total(1)),was5=all5(rec(d,p),d);
-  try{apply(await api(body))}catch(e){return toast(e.status==409?'Already done for today.':'Couldn\u2019t save. Check your internet and try again.')}
-  if(okMsg)toast(okMsg);
-  if(!was5&&all5(rec(d,p),d))toast('🌟 All done today! +20 bonus points');
-  const after=Math.max(total(0),total(1));
-  STOPS.forEach(s=>{if(s[0]>0&&before<s[0]*FINISH&&after>=s[0]*FINISH)toast(`${s[1]} Reached the ${s[2]}!`)});
+function apply(data){S.logs=data.logs;index();if(!loaded){loaded=true;shown[0]=shown[1]=null}setSync(true);render()}
+// Only the newest answer wins, and taps are sent one at a time, so a slow refresh can never undo a tap.
+let seq=0,applied=0,chain=Promise.resolve();
+async function refresh(){const my=++seq;try{const data=await api();if(my<applied)return;applied=my;apply(data)}catch(e){setSync(false)}}
+function act(body,okMsg){
+  const run=async()=>{
+    const p=S.cur,d=dn(off),before=Math.max(total(0),total(1)),was5=all5(rec(d,p),d),my=++seq;
+    try{const data=await api(body);applied=Math.max(applied,my);apply(data)}catch(e){return toast(e.status==409?'Already done for today.':'Couldn\u2019t save. Check your internet and try again.')}
+    if(okMsg)toast(okMsg);
+    if(!was5&&all5(rec(d,p),d))toast('🌟 All done today! +20 bonus points');
+    const after=Math.max(total(0),total(1));
+    STOPS.forEach(s=>{if(s[0]>0&&before<s[0]*FINISH&&after>=s[0]*FINISH)toast(`${s[1]} Reached the ${s[2]}!`)});
+  };
+  return chain=chain.then(run,run);
 }
 
 const trk=$('trk'),L=trk.getTotalLength();
 $('stops').innerHTML=STOPS.map(([f,e,n])=>{const p=trk.getPointAtLength(L*f);return `<text x="${p.x}" y="${p.y+9}" font-size="30" text-anchor="middle">${e}</text><text x="${p.x}" y="${p.y+(f==1?-26:f==0?40:44)}" font-size="17" font-weight="700" text-anchor="middle" fill="var(--ink)">${n}</text>`}).join('');
+// Little runners: they grow, dance, shrink, then run forward along the path.
+const runner=i=>{const c=`style="stroke:${col[i]}"`,f=`style="fill:${col[i]}"`;return `<g class="av" id="av${i}"><g class="sz"><g class="runner">
+<path d="M0 3 L10 9 L8 18" fill="none" stroke="#3a2f4a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 3 L-8 11 L-16 12" fill="none" stroke="#3a2f4a" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="0" y1="-12" x2="-1" y2="4" ${c} stroke-width="9" stroke-linecap="round"/>
+<line x1="0" y1="-9" x2="-11" y2="0" stroke="#f2c9a0" stroke-width="3.5" stroke-linecap="round"/><line x1="0" y1="-9" x2="10" y2="-15" stroke="#f2c9a0" stroke-width="3.5" stroke-linecap="round"/>
+<circle cx="0" cy="-21" r="8" fill="#f2c9a0"/><path d="M-8 -22 Q0 -35 8 -22 Z" ${f}/><circle cx="3.5" cy="-20" r="1.4" fill="#2b2035"/><path d="M1.5 -16.5 Q4 -14.5 6.5 -16.5" fill="none" stroke="#2b2035" stroke-width="1.1" stroke-linecap="round"/>
+</g></g><text class="nm" y="${i?44:-40}" text-anchor="middle" ${f}>${NAMES[i]}</text></g>`};
+$('avs').innerHTML=[0,1].map(runner).join('');
+const shown=[null,null],anim=[0,0],sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let loaded=false;
+const setPos=(i,pts)=>{const p=trk.getPointAtLength(L*Math.min(pts/FINISH,1));$('av'+i).style.transform=`translate(${p.x}px,${p.y+(i?16:-16)}px)`;shown[i]=pts};
+async function advance(i,to){
+  anim[i]=1;const g=$('av'+i);$('avs').appendChild(g);
+  g.classList.add('grow');await sleep(650);
+  g.classList.add('dance');await sleep(1700);
+  g.classList.remove('dance');g.classList.remove('grow');await sleep(650);
+  setPos(i,to);anim[i]=0;await sleep(1400);drawMap();
+}
 function drawMap(){
   const t=[total(0),total(1)],d0=dn(0);
-  $('avs').innerHTML=[0,1].map(i=>{const p=trk.getPointAtLength(L*Math.min(t[i]/FINISH,1));
-    return `<g class="av" style="transform:translate(${p.x}px,${p.y+(i?16:-16)}px)"><circle r="21" fill="${col[i]}" stroke="#fff" stroke-width="4"/><text y="7" font-size="21" font-weight="700" fill="#fff" text-anchor="middle">${NAMES[i][0]}</text></g>`}).join('');
+  [0,1].forEach(i=>{if(anim[i])return;if(shown[i]===null)setPos(i,t[i]);else if(t[i]>shown[i])advance(i,t[i]);else if(t[i]<shown[i])setPos(i,t[i])});
   const d=t[0]-t[1];
   $('lead').textContent=t[0]>=FINISH||t[1]>=FINISH?'🏆 '+NAMES[t[0]>=t[1]?0:1]+' wins the race!':d==0?'It\u2019s a tie! Who will pull ahead?':NAMES[d>0?0:1]+' leads by '+Math.abs(d)+' points!';
   $('scores').innerHTML=[0,1].map(i=>`<div class="sc" style="--c:${col[i]}"><small>${NAMES[i]}</small><b>${t[i]}</b><small>of ${FINISH} · today ${sum(rec(d0,i),d0)}</small></div>`).join('');
@@ -212,8 +258,27 @@ function render(){
   drawMap();
 }
 
+// ---- Journal ----
+const QUOTES=['Breathe in slowly. Breathe out gently. This moment is enough.','You don\u2019t have to do everything today. Just the next kind thing.','Notice one small good thing right now, and let it stay a little longer.','Slow steps still carry you forward.','Be where your feet are.','Let the day be soft, and let yourself be gentle.','Gratitude turns an ordinary day into a gift.','Your body has carried you through so much. Thank it today.','Peace begins with one deep breath.','Every quiet moment is a small place to rest.'];
+const PROMPTS=['What made you smile today?','What are you grateful for right now?','What did your body do well today?','Who are you thinking of, and what would you like to tell them?','Describe a moment today when you felt calm.','What are you looking forward to?','What is a memory that warms your heart?','What is something small you are proud of this week?'];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+let JE=[];
+const shareWA=(name,prompt,text,ts)=>{const when=new Date(ts||Date.now()).toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',timeZone:TZ});window.open('https://wa.me/?text='+encodeURIComponent(`📖 ${name}\u2019s journal, ${when}\n\n${prompt}\n\n${text}`),'_blank','noopener')};
+function drawJournal(){$('jlist').innerHTML=JE.length?JE.slice(-5).reverse().map((e,i)=>`<div class="ex"><p>${new Date(e.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',timeZone:TZ})} · ${esc(e.prompt)}</p><div class="jtxt">${esc(e.text)}</div><div class="row"><button class="alt" data-js="${JE.length-1-i}">Share on WhatsApp</button></div></div>`).join(''):'<p class="sub">Your saved entries will show up here.</p>'}
+async function openJournal(){
+  $('jhead').textContent=NAMES[S.cur]+'\u2019s journal';$('jq').textContent='\u201C'+pick(QUOTES)+'\u201D';$('jp').textContent=pick(PROMPTS);
+  $('jt').value='';JE=[];drawJournal();$('jr').hidden=false;$('jr').scrollTop=0;
+  try{JE=(await api(null,'?journal='+NAMES[S.cur])).journal;drawJournal()}catch(e){}
+}
 document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
+  if(t.id=='bookBtn')return openJournal();
+  if(t.id=='jclose'){$('jr').hidden=true;return}
+  if(t.id=='jnew'){$('jp').textContent=pick(PROMPTS);return}
+  if(t.id=='jshare'){const x=$('jt').value.trim();if(!x)return toast('Write a few words first.');return shareWA(NAMES[S.cur],$('jp').textContent,x)}
+  if(t.dataset.js!=null){const en=JE[+t.dataset.js];return en&&shareWA(NAMES[S.cur],en.prompt,en.text,en.ts)}
+  if(t.id=='jsave'){const x=$('jt').value.trim();if(!x)return toast('Write a few words first.');
+    api({action:'journal',user:NAMES[S.cur],prompt:$('jp').textContent,text:x}).then(d=>{JE=d.journal;$('jt').value='';drawJournal();toast('Saved. Well done 📖')}).catch(()=>toast('Couldn\u2019t save. Check your internet and try again.'));return}
   const p=S.cur,user=NAMES[p],d=dn(off),r=rec(d,p);
   const add=(exercise,amount=1)=>({action:'add',entry:{user,exercise,amount,day:d}});
   const undo=exercise=>({action:'undo',user,exercise,day:d});
